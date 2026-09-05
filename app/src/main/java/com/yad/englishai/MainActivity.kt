@@ -36,7 +36,6 @@ class MainActivity : AppCompatActivity() {
         btnStartFloating = findViewById(R.id.btnStartFloating)
         btnStopFloating = findViewById(R.id.btnStopFloating)
         
-        // Translator ID -> EN
         val options = TranslatorOptions.Builder()
             .setSourceLanguage(TranslateLanguage.INDONESIAN)
             .setTargetLanguage(TranslateLanguage.ENGLISH)
@@ -44,28 +43,19 @@ class MainActivity : AppCompatActivity() {
         translator = Translation.getClient(options)
         translator.downloadModelIfNeeded(DownloadConditions.Builder().build())
         
-        // TTS
         textToSpeech = TextToSpeech(this) { status ->
-            if (status == TextToSpeech.SUCCESS) {
-                textToSpeech.language = Locale.US
-            }
+            if (status == TextToSpeech.SUCCESS) textToSpeech.language = Locale.US
         }
         
-        // Terjemahkan
         btnTranslate.setOnClickListener {
             val text = inputText.text.toString()
             if (text.isNotEmpty()) {
                 translator.translate(text)
-                    .addOnSuccessListener { result ->
-                        translatedText.text = result
-                    }
-                    .addOnFailureListener {
-                        Toast.makeText(this, "Gagal", Toast.LENGTH_SHORT).show()
-                    }
+                    .addOnSuccessListener { result -> translatedText.text = result }
+                    .addOnFailureListener { Toast.makeText(this, "Gagal", Toast.LENGTH_SHORT).show() }
             }
         }
         
-        // Dengarkan
         btnSpeak.setOnClickListener {
             val text = translatedText.text.toString()
             if (text.isNotEmpty() && text != "Hasil terjemahan...") {
@@ -73,7 +63,6 @@ class MainActivity : AppCompatActivity() {
             }
         }
         
-        // Copy
         btnCopy.setOnClickListener {
             val text = translatedText.text.toString()
             if (text.isNotEmpty() && text != "Hasil terjemahan...") {
@@ -85,15 +74,9 @@ class MainActivity : AppCompatActivity() {
             }
         }
         
-        // Start Floating
-        btnStartFloating.setOnClickListener {
-            startFloatingTranslator()
-        }
-        
-        // Stop Floating
+        btnStartFloating.setOnClickListener { startFloatingTranslator() }
         btnStopFloating.setOnClickListener {
             stopService(Intent(this, FloatingTranslatorService::class.java))
-            Toast.makeText(this, "Floating dihentikan", Toast.LENGTH_SHORT).show()
             updateFloatingButtons()
         }
         
@@ -103,14 +86,10 @@ class MainActivity : AppCompatActivity() {
     private fun startFloatingTranslator() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             if (!Settings.canDrawOverlays(this)) {
-                startActivityForResult(
-                    Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                        Uri.parse("package:$packageName")), 100
-                )
+                startActivityForResult(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName")), 100)
                 return
             }
         }
-        
         val manager = getSystemService(MEDIA_PROJECTION_SERVICE) as android.media.projection.MediaProjectionManager
         startActivityForResult(manager.createScreenCaptureIntent(), 200)
     }
@@ -123,32 +102,20 @@ class MainActivity : AppCompatActivity() {
     
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
-        
         if (requestCode == 200 && resultCode == RESULT_OK && data != null) {
             val intent = Intent(this, FloatingTranslatorService::class.java)
             intent.putExtra("resultCode", resultCode)
             intent.putExtra("resultData", data)
-            
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                startForegroundService(intent)
-            } else {
-                startService(intent)
-            }
-            
-            Toast.makeText(this, "🌍 Floating aktif! Geser ke teks", Toast.LENGTH_LONG).show()
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) startForegroundService(intent)
+            else startService(intent)
             updateFloatingButtons()
         }
     }
     
-    override fun onResume() {
-        super.onResume()
-        updateFloatingButtons()
-    }
+    override fun onResume() { super.onResume(); updateFloatingButtons() }
     
     override fun onDestroy() {
         super.onDestroy()
-        textToSpeech.stop()
-        textToSpeech.shutdown()
-        translator.close()
+        textToSpeech.stop(); textToSpeech.shutdown(); translator.close()
     }
 }
