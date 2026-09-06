@@ -1,4 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">EnglishAI By Yad</string>
+    <string name="app_name">EnglishAI</string>
+    <string name="by_yad">By Yad</string>
+    <string name="translate">Terjemahkan</string>
+    <string name="translation_result">Hasil terjemahan...</string>
+    <string name="listen">Dengar</string>
+    <string name="copy">Salin</string>
+    <string name="close">Tutup</string>
+    <string name="input_hint">Masukkan teks...</string>
+    <string name="translating">Menerjemahkan...</string>
+    <string name="translation_success">Terjemahan berhasil!</string>
+    <string name="translation_failed">Terjemahan gagal</string>
+    <string name="copied">Tersalin!</string>
+    <string name="no_text">Masukkan teks terlebih dahulu</string>
 </resources>
