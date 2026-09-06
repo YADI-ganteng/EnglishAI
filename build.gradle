@@ -1,3 +1,4 @@
+// Top-level build file
 buildscript {
     repositories {
         google()
@@ -9,13 +10,7 @@ buildscript {
     }
 }
 
-allprojects {
-    repositories {
-        google()
-        mavenCentral()
-    }
-}
-
+// Remove allprojects repositories - settings.gradle handles it
 task clean(type: Delete) {
     delete rootProject.buildDir
 }
