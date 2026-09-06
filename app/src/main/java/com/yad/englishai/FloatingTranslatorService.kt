@@ -1,247 +1,221 @@
 package com.yad.englishai
 
-import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
-import android.content.ClipData
-import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
-import android.graphics.Bitmap
 import android.graphics.PixelFormat
-import android.hardware.display.DisplayManager
-import android.hardware.display.VirtualDisplay
-import android.media.ImageReader
-import android.media.projection.MediaProjection
-import android.media.projection.MediaProjectionManager
 import android.os.Build
-import android.os.Handler
 import android.os.IBinder
-import android.os.Looper
-import android.util.DisplayMetrics
 import android.view.Gravity
 import android.view.LayoutInflater
-import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
-import android.widget.Button
-import android.widget.TextView
-import android.widget.Toast
+import android.widget.*
 import androidx.core.app.NotificationCompat
-import com.google.mlkit.common.model.DownloadConditions
-import com.google.mlkit.nl.translate.TranslateLanguage
-import com.google.mlkit.nl.translate.Translation
-import com.google.mlkit.nl.translate.TranslatorOptions
-import com.google.mlkit.vision.common.InputImage
-import com.google.mlkit.vision.text.TextRecognition
-import com.google.mlkit.vision.text.latin.TextRecognizerOptions
+import kotlinx.coroutines.*
+import org.json.JSONObject
+import java.net.HttpURLConnection
+import java.net.URL
 
 class FloatingTranslatorService : Service() {
-    companion object { @JvmStatic var isRunning = false }
     
-    private var windowManager: WindowManager? = null
+    private lateinit var windowManager: WindowManager
     private var floatingView: View? = null
-    private var translatedTextView: TextView? = null
-    private var translatedTextFull: TextView? = null
-    private var translationArea: View? = null
-    private var translator: com.google.mlkit.nl.translate.Translator? = null
-    private var textRecognizer: com.google.mlkit.vision.text.TextRecognizer? = null
-    private var mediaProjection: MediaProjection? = null
-    private var virtualDisplay: VirtualDisplay? = null
-    private var imageReader: ImageReader? = null
-    private var screenWidth = 0
-    private var screenHeight = 0
-    private var screenDensity = 0
-    private val handler = Handler(Looper.getMainLooper())
-    private var lastTranslatedText = ""
-    private var areaX = 0
-    private var areaY = 100
-    private var ocrRunning = false
+    private var translationArea: LinearLayout? = null
+    private var inputEditText: EditText? = null
+    private var resultTextView: TextView? = null
     private var serviceIntent: Intent? = null
-    private var isSetup = false
-    private val CROP_SIZE = 150
+    private val scope = CoroutineScope(Dispatchers.Main + Job())
+    
+    companion object {
+        const val CHANNEL_ID = "translator_channel"
+        const val NOTIFICATION_ID = 1
+        const val ACTION_STOP = "STOP_SERVICE"
+    }
     
     override fun onBind(intent: Intent?): IBinder? = null
     
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         serviceIntent = intent
-        if (!isSetup) setupService() else setupScreenCapture()
+        createNotificationChannel()
+        startForeground(NOTIFICATION_ID, createNotification())
+        setupFloatingWindow()
         return START_STICKY
     }
     
-    private fun setupService() {
-        try {
-            windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
-            createNotificationChannel()
-            startForeground(1, createNotification())
-            textRecognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
-            val options = TranslatorOptions.Builder()
-                .setSourceLanguage(TranslateLanguage.ENGLISH)
-                .setTargetLanguage(TranslateLanguage.INDONESIAN)
-                .build()
-            translator = Translation.getClient(options)
-            translator?.downloadModelIfNeeded(DownloadConditions.Builder().build())
-            setupFloatingWindow()
-            setupScreenCapture()
-            startOCRLoop()
-            isSetup = true
-            isRunning = true
-        } catch (e: Exception) { e.printStackTrace(); stopSelf() }
+    private fun createNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                CHANNEL_ID,
+                "Floating Translator",
+                NotificationManager.IMPORTANCE_LOW
+            )
+            channel.description = "Floating translator service"
+            val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            manager.createNotificationChannel(channel)
+        }
+    }
+    
+    private fun createNotification() = NotificationCompat.Builder(this, CHANNEL_ID)
+        .setContentTitle("EnglishAI")
+        .setContentText("Floating translator aktif")
+        .setSmallIcon(android.R.drawable.ic_menu_edit)
+        .setContentIntent(createPendingIntent())
+        .setOngoing(true)
+        .build()
+    
+    private fun createPendingIntent(): PendingIntent {
+        val intent = Intent(this, MainActivity::class.java)
+        return PendingIntent.getActivity(
+            this, 0, intent,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
     }
     
     private fun setupFloatingWindow() {
+        windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
+        
+        val inflater = getSystemService(Context.LAYOUT_INFLATER_SERVICE) as LayoutInflater
+        floatingView = inflater.inflate(R.layout.floating_translator, null)
+        
+        val params = WindowManager.LayoutParams(
+            WindowManager.LayoutParams.WRAP_CONTENT,
+            WindowManager.LayoutParams.WRAP_CONTENT,
+            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
+            PixelFormat.TRANSLUCENT
+        )
+        
+        params.gravity = Gravity.TOP or Gravity.START
+        params.x = 0
+        params.y = 100
+        
         try {
-            val wm = windowManager ?: return
-            val inflater = getSystemService(Context.LAYOUT_INFLATER_SERVICE) as LayoutInflater
-            val view = inflater.inflate(R.layout.floating_translator, null)
-            floatingView = view
-            translatedTextView = view.findViewById(R.id.translatedTextView)
-            translatedTextFull = view.findViewById(R.id.translatedTextFull)
-            translationArea = view.findViewById(R.id.translationArea)
-            val btnCopy = view.findViewById<Button>(R.id.btnCopy)
-            val btnClose = view.findViewById<Button>(R.id.btnClose)
-            val dragHandle = view.findViewById<View>(R.id.dragHandle)
-            
-            btnCopy.setOnClickListener {
-                if (lastTranslatedText.isNotEmpty()) {
-                    val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                    clipboard.setPrimaryClip(ClipData.newPlainText("Translated", lastTranslatedText))
-                    Toast.makeText(this, "✅ Tersalin!", Toast.LENGTH_SHORT).show()
-                    lastTranslatedText = ""
-                    translatedTextFull?.text = "..."
-                    translationArea?.visibility = View.GONE
-                    translatedTextView?.text = "🌍"
-                }
-            }
-            btnClose.setOnClickListener { translationArea?.visibility = View.GONE }
-            dragHandle.setOnClickListener {
-                if (translationArea?.visibility == View.VISIBLE) translationArea?.visibility = View.GONE
-                else translationArea?.visibility = View.VISIBLE
-            }
-            
-            val type = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
-            else @Suppress("DEPRECATION") WindowManager.LayoutParams.TYPE_PHONE
-            
-            val params = WindowManager.LayoutParams(
-                WindowManager.LayoutParams.WRAP_CONTENT, WindowManager.LayoutParams.WRAP_CONTENT,
-                type, WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
-                PixelFormat.TRANSLUCENT
-            )
-            params.gravity = Gravity.TOP or Gravity.START
-            params.x = areaX
-            params.y = areaY
-            wm.addView(view, params)
-            setupDrag(view, wm, params)
-        } catch (e: Exception) { e.printStackTrace() }
+            windowManager.addView(floatingView, params)
+            setupViews()
+            setupDragAndDrop(params)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            stopSelf()
+        }
     }
     
-    private fun setupDrag(view: View, wm: WindowManager, params: WindowManager.LayoutParams) {
-        var initialX = 0; var initialY = 0; var touchX = 0f; var touchY = 0f; var isDragging = false
-        view.setOnTouchListener { _, event ->
+    private fun setupViews() {
+        inputEditText = floatingView?.findViewById(R.id.inputEditText)
+        resultTextView = floatingView?.findViewById(R.id.resultTextView)
+        translationArea = floatingView?.findViewById(R.id.translationArea)
+        
+        floatingView?.findViewById<Button>(R.id.btnTranslate)?.setOnClickListener {
+            performTranslation()
+        }
+        
+        floatingView?.findViewById<Button>(R.id.btnCopy)?.setOnClickListener {
+            copyResult()
+        }
+        
+        floatingView?.findViewById<Button>(R.id.btnClose)?.setOnClickListener {
+            translationArea?.visibility = View.GONE
+        }
+        
+        floatingView?.findViewById<Button>(R.id.btnSpeak)?.setOnClickListener {
+            speakResult()
+        }
+    }
+    
+    private fun setupDragAndDrop(params: WindowManager.LayoutParams) {
+        val dragHandle = floatingView?.findViewById<View>(R.id.dragHandle)
+        
+        dragHandle?.setOnTouchListener { _, event ->
             when (event.action) {
-                MotionEvent.ACTION_DOWN -> { initialX = params.x; initialY = params.y; touchX = event.rawX; touchY = event.rawY; isDragging = false; true }
-                MotionEvent.ACTION_MOVE -> {
-                    val dx = event.rawX - touchX; val dy = event.rawY - touchY
-                    if (Math.abs(dx) > 5 || Math.abs(dy) > 5) isDragging = true
-                    if (isDragging) { params.x = initialX + dx.toInt(); params.y = initialY + dy.toInt(); areaX = params.x; areaY = params.y; wm.updateViewLayout(view, params) }
+                android.view.MotionEvent.ACTION_MOVE -> {
+                    params.x = event.rawX.toInt() - (floatingView?.width ?: 0) / 2
+                    params.y = event.rawY.toInt() - (floatingView?.height ?: 0) / 2
+                    try {
+                        windowManager.updateViewLayout(floatingView, params)
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
                     true
                 }
-                MotionEvent.ACTION_UP -> { if (!isDragging) view.performClick(); true }
                 else -> false
             }
         }
     }
     
-    private fun setupScreenCapture() {
+    private fun performTranslation() {
+        val text = inputEditText?.text?.toString()?.trim() ?: return
+        
+        if (text.isEmpty()) {
+            Toast.makeText(this, R.string.no_text, Toast.LENGTH_SHORT).show()
+            return
+        }
+        
+        translationArea?.visibility = View.VISIBLE
+        resultTextView?.text = getString(R.string.translating)
+        
+        scope.launch {
+            val result = translateText(text)
+            resultTextView?.text = result
+        }
+    }
+    
+    private suspend fun translateText(text: String): String = withContext(Dispatchers.IO) {
         try {
-            val wm = windowManager ?: return
-            val metrics = DisplayMetrics()
-            @Suppress("DEPRECATION") wm.defaultDisplay.getRealMetrics(metrics)
-            screenWidth = metrics.widthPixels; screenHeight = metrics.heightPixels; screenDensity = metrics.densityDpi
-            imageReader = ImageReader.newInstance(screenWidth, screenHeight, PixelFormat.RGBA_8888, 2)
-            val intent = serviceIntent
-            val resultCode = intent?.getIntExtra("resultCode", 0) ?: 0
-            val resultData: Intent? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) intent?.getParcelableExtra("resultData", Intent::class.java)
-            else @Suppress("DEPRECATION") intent?.getParcelableExtra("resultData")
-            if (resultCode != 0 && resultData != null && mediaProjection == null) {
-                val manager = getSystemService(Context.MEDIA_PROJECTION_SERVICE) as MediaProjectionManager
-                mediaProjection = manager.getMediaProjection(resultCode, resultData)
-                virtualDisplay = mediaProjection?.createVirtualDisplay("FloatingTranslator", screenWidth, screenHeight, screenDensity, DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR, imageReader?.surface, null, null)
+            val url = URL("https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=id&dt=t&q=${java.net.URLEncoder.encode(text, "UTF-8")}")
+            val connection = url.openConnection() as HttpURLConnection
+            connection.requestMethod = "GET"
+            connection.connectTimeout = 5000
+            connection.readTimeout = 10000
+            
+            val response = connection.inputStream.bufferedReader().readText()
+            connection.disconnect()
+            
+            parseTranslationResponse(response)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            getString(R.string.translation_failed)
+        }
+    }
+    
+    private fun parseTranslationResponse(response: String): String {
+        return try {
+            val jsonArray = JSONObject(response).getJSONArray("sentences")
+            val sb = StringBuilder()
+            for (i in 0 until jsonArray.length()) {
+                sb.append(jsonArray.getJSONObject(i).getString("trans"))
             }
-        } catch (e: Exception) { e.printStackTrace() }
-    }
-    
-    private fun startOCRLoop() {
-        handler.post(object : Runnable {
-            override fun run() { captureAndTranslate(); handler.postDelayed(this, 5000) }
-        })
-    }
-    
-    private fun captureAndTranslate() {
-        if (ocrRunning) return
-        ocrRunning = true
-        try {
-            val reader = imageReader ?: run { ocrRunning = false; return }
-            val recognizer = textRecognizer ?: run { ocrRunning = false; return }
-            val image = reader.acquireLatestImage()
-            if (image != null) {
-                val plane = image.planes[0]; val buffer = plane.buffer
-                val pixelStride = plane.pixelStride; val rowStride = plane.rowStride
-                val rowPadding = rowStride - pixelStride * screenWidth
-                val fullBitmap = Bitmap.createBitmap(screenWidth + rowPadding / pixelStride, screenHeight, Bitmap.Config.ARGB_8888)
-                fullBitmap.copyPixelsFromBuffer(buffer)
-                val cropX = (areaX - CROP_SIZE/2).coerceIn(0, screenWidth - CROP_SIZE)
-                val cropY = (areaY - CROP_SIZE/2).coerceIn(0, screenHeight - CROP_SIZE)
-                val croppedBitmap = Bitmap.createBitmap(fullBitmap, cropX, cropY, CROP_SIZE, CROP_SIZE)
-                val inputImage = InputImage.fromBitmap(croppedBitmap, 0)
-                recognizer.process(inputImage)
-                    .addOnSuccessListener { visionText ->
-                        if (visionText.text.isNotEmpty()) translateText(visionText.text)
-                    }
-                    .addOnCompleteListener {
-                        image.close(); fullBitmap.recycle(); croppedBitmap.recycle(); ocrRunning = false
-                    }
-            } else { ocrRunning = false }
-        } catch (e: Exception) { ocrRunning = false }
-    }
-    
-    private fun translateText(text: String) {
-        val trans = translator ?: return
-        trans.translate(text).addOnSuccessListener { result ->
-            lastTranslatedText = result
-            translatedTextFull?.post { translatedTextFull?.text = result }
-            translatedTextView?.post { translatedTextView?.text = "✅" }
+            sb.toString()
+        } catch (e: Exception) {
+            getString(R.string.translation_failed)
         }
     }
     
-    private fun createNotificationChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel("floating_translator", "Floating Translator By Yad", NotificationManager.IMPORTANCE_LOW)
-            getSystemService(NotificationManager::class.java)?.createNotificationChannel(channel)
-        }
+    private fun copyResult() {
+        val result = resultTextView?.text?.toString() ?: return
+        val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+        val clip = android.content.ClipData.newPlainText("translation", result)
+        clipboard.setPrimaryClip(clip)
+        Toast.makeText(this, R.string.copied, Toast.LENGTH_SHORT).show()
     }
     
-    private fun createNotification(): Notification {
-        val intent = Intent(this, MainActivity::class.java)
-        val pendingIntent = PendingIntent.getActivity(this, 0, intent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
-        return NotificationCompat.Builder(this, "floating_translator")
-            .setContentTitle("🌍 Floating Translator By Yad")
-            .setContentText("Geser ke teks | Tap untuk hasil")
-            .setSmallIcon(android.R.drawable.ic_menu_edit)
-            .setContentIntent(pendingIntent)
-            .setOngoing(true)
-            .build()
+    private fun speakResult() {
+        val result = resultTextView?.text?.toString() ?: return
+        // TODO: Implement text-to-speech
+        Toast.makeText(this, "TTS coming soon", Toast.LENGTH_SHORT).show()
     }
     
     override fun onDestroy() {
-        super.onDestroy(); isRunning = false; handler.removeCallbacksAndMessages(null)
-        try { virtualDisplay?.release() } catch (e: Exception) {}
-        try { mediaProjection?.stop() } catch (e: Exception) {}
-        try { imageReader?.close() } catch (e: Exception) {}
-        try { floatingView?.let { windowManager?.removeView(it) } } catch (e: Exception) {}
-        try { translator?.close() } catch (e: Exception) {}
-        try { textRecognizer?.close() } catch (e: Exception) {}
+        super.onDestroy()
+        scope.cancel()
+        if (floatingView != null) {
+            try {
+                windowManager.removeView(floatingView)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
     }
 }
