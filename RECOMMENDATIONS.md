@@ -1,96 +1,61 @@
-# Rekomendasi Perbaikan - EnglishAI
+# Rekomendasi Perbaikan - EnglishAI (v2)
 
-## Hasil Analisis (2026-09-06)
+## Progress Perbaikan
 
-### Statistik Code
-- Total files: 17
-- Total lines: 606
-- Total characters: 28,676
-- Code density: 81.53%
-- Comments: 10 (perlu ditingkatkan)
+### Completed
+- [x] String resources (25 strings)
+- [x] KDoc documentation
+- [x] TranslationManager (reduces complexity)
+- [x] NetworkManager (network check)
+- [x] TTSManager (text-to-speech)
+- [x] Error handling
 
-### Kompleksitas
-| File | Complexity | Status |
-|------|-----------|--------|
-| FloatingTranslatorService.kt | 54 | KRITIS - Perlu refactor |
-| MainActivity.kt | 15 | TINGGI - Perlu perbaikan |
+### Complexity Reduction
+| File | Before | After | Change |
+|------|--------|-------|--------|
+| FloatingTranslatorService.kt | 54 | 38 | -16 |
+| MainActivity.kt | 15 | 15 | 0 |
 
-## Perbaikan yang Sudah Dilakukan
+### New Files Added
+1. TranslationManager.kt - Translation logic
+2. NetworkManager.kt - Network check
+3. TTSManager.kt - Text-to-speech
 
-### 1. String Resources
-- 15 hardcoded strings dipindah ke strings.xml
-- Tambah 10 string resources baru
+## Next Steps
 
-### 2. FloatingTranslatorService.kt
-- Refactor dengan helper methods
-- Tambah KDoc documentation
-- Null safety improvements
-- Network connectivity check
-- Text-to-Speech support
-- Better error handling
-- Coroutine scope management
+### Priority 1: Testing
+- [ ] Unit test TranslationManager
+- [ ] Unit test NetworkManager
+- [ ] UI test MainActivity
+- [ ] Integration test FloatingTranslatorService
 
-### 3. MainActivity.kt
-- Tambah KDoc
-- Overlay permission handling
-- Foreground service support
-- Error handling
+### Priority 2: Architecture
+- [ ] Implement MVVM
+- [ ] Add Repository pattern
+- [ ] Use Dependency Injection
 
-## Rekomendasi Lanjutan
+### Priority 3: Features
+- [ ] Translation history
+- [ ] Multiple language support
+- [ ] Dark mode
+- [ ] Customizable floating window
 
-### 1. Architecture
-- [ ] Implement MVVM pattern
-- [ ] Tambah Repository layer
-- [ ] Gunakan Dependency Injection (Hilt/Koin)
-- [ ] Pisahkan business logic dari UI
-
-### 2. Testing
-- [ ] Unit tests untuk translation logic
-- [ ] UI tests untuk MainActivity
-- [ ] Integration tests untuk service
-- [ ] Mock network responses
-
-### 3. Performance
-- [ ] Tambah caching untuk hasil terjemahan
-- [ ] Batasi jumlah request per menit
-- [ ] Gunakan connection pooling
-- [ ] Implement retry dengan exponential backoff
-
-### 4. Security
-- [ ] Enkripsi data yang dikirim
-- [ ] Validasi input sebelum dikirim
+### Priority 4: Performance
+- [ ] Caching translations
 - [ ] Rate limiting
-- [ ] HTTPS certificate pinning
+- [ ] Connection pooling
 
-### 5. UX Improvements
-- [ ] Tambah loading indicator
-- [ ] Tambah history terjemahan
-- [ ] Support multiple languages
-- [ ] Dark mode support
-- [ ] Customizable floating window size
+## Code Quality Metrics
 
-### 6. Code Quality
-- [ ] Tambah unit tests (min 80% coverage)
-- [ ] Gunakan lint checks
-- [ ] Tambah CI/CD pipeline
-- [ ] Code review process
+### Current
+- Files: 21 (target: 25+)
+- Lines: 910 (target: 1000+)
+- Comments: 27 (target: 50+)
+- Test coverage: 0% (target: 80%)
+- Complexity: 38 (target: <20)
 
-## Prioritas (High to Low)
-
-1. **HIGH**: Fix complexity di FloatingTranslatorService
-2. **HIGH**: Tambah unit tests
-3. **MEDIUM**: Implement MVVM
-4. **MEDIUM**: Tambah caching
-5. **LOW**: Dark mode
-6. **LOW**: Customizable UI
-
-## Estimasi Waktu
-
-| Task | Estimasi |
-|------|----------|
-| Refactor complexity | 2-3 hari |
-| Unit tests | 1-2 hari |
-| MVVM implementation | 3-5 hari |
-| Caching | 1 hari |
-| Dark mode | 1 hari |
-| Total | 8-12 hari |
+### Target
+- Test coverage: 80%
+- Complexity: <20 per file
+- Comments: 10% of code
+- CI/CD: Automated
