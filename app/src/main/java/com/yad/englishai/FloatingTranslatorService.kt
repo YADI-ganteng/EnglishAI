@@ -2,6 +2,7 @@ package com.yad.englishai
 
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.app.Service
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -60,7 +61,9 @@ class FloatingTranslatorService : Service() {
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
-                CHANNEL_ID, "Translator", NotificationManager.IMPORTANCE_LOW
+                CHANNEL_ID,
+                "Translator",
+                NotificationManager.IMPORTANCE_LOW
             )
             val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             manager.createNotificationChannel(channel)
@@ -80,6 +83,7 @@ class FloatingTranslatorService : Service() {
         val inflater = getSystemService(Context.LAYOUT_INFLATER_SERVICE) as LayoutInflater
         floatingView = inflater.inflate(R.layout.floating_translator, null)
         
+        // GUNAKAN FLAG_NOT_FOCUSABLE agar bisa disentuh
         val params = WindowManager.LayoutParams(
             WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.WRAP_CONTENT,
@@ -108,6 +112,7 @@ class FloatingTranslatorService : Service() {
         resultTextView = floatingView?.findViewById(R.id.resultTextView)
         translationArea = floatingView?.findViewById(R.id.translationArea)
         
+        // Set focusable agar bisa menerima input
         inputEditText?.isFocusable = true
         inputEditText?.isFocusableInTouchMode = true
         
@@ -143,8 +148,12 @@ class FloatingTranslatorService : Service() {
                 }
                 MotionEvent.ACTION_MOVE -> {
                     if (isDragging) {
-                        params.x = initialX + (event.rawX - initialTouchX).toInt()
-                        params.y = initialY + (event.rawY - initialTouchY).toInt()
+                        val deltaX = (event.rawX - initialTouchX).toInt()
+                        val deltaY = (event.rawY - initialTouchY).toInt()
+                        
+                        params.x = initialX + deltaX
+                        params.y = initialY + deltaY
+                        
                         try {
                             windowManager.updateViewLayout(floatingView, params)
                         } catch (e: Exception) {
@@ -194,6 +203,7 @@ class FloatingTranslatorService : Service() {
             connection.connectTimeout = 10000
             connection.readTimeout = 15000
             connection.setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
+            connection.setRequestProperty("Accept", "application/json")
             
             val responseCode = connection.responseCode
             
@@ -225,16 +235,19 @@ class FloatingTranslatorService : Service() {
     
     private fun copyResult() {
         val result = resultTextView?.text?.toString() ?: return
+        
         if (result.isEmpty()) return
         
         val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
         val clip = ClipData.newPlainText("translation", result)
         clipboard.setPrimaryClip(clip)
+        
         Toast.makeText(this, "Tersalin!", Toast.LENGTH_SHORT).show()
     }
     
     private fun isNetworkAvailable(): Boolean {
         val cm = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             val network = cm.activeNetwork ?: return false
             val capabilities = cm.getNetworkCapabilities(network) ?: return false
@@ -251,7 +264,11 @@ class FloatingTranslatorService : Service() {
     override fun onDestroy() {
         scope.cancel()
         if (floatingView != null) {
-            try { windowManager.removeView(floatingView) } catch (e: Exception) {}
+            try {
+                windowManager.removeView(floatingView)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
         }
         super.onDestroy()
     }
