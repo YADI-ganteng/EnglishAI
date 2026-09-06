@@ -1,22 +1,28 @@
 plugins {
     id 'com.android.application'
-    id 'kotlin-android'
+    id 'org.jetbrains.kotlin.android'
 }
 
 android {
     namespace 'com.yad.englishai'
     compileSdk 34
-
+    
     defaultConfig {
         applicationId "com.yad.englishai"
         minSdk 21
         targetSdk 34
         versionCode 1
         versionName "1.0"
+        
+        multiDexEnabled true
     }
-
+    
     buildTypes {
         release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+        debug {
             minifyEnabled false
         }
     }
@@ -30,15 +36,8 @@ android {
         jvmTarget = '1.8'
     }
     
-    lint {
-        abortOnError false
-        checkReleaseBuilds false
-    }
-    
-    packagingOptions {
-        resources {
-            excludes += ['/META-INF/{AL2.0,LGPL2.1}']
-        }
+    buildFeatures {
+        viewBinding true
     }
 }
 
@@ -58,4 +57,8 @@ dependencies {
     // Lifecycle
     implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.7.0'
     implementation 'androidx.lifecycle:lifecycle-service:2.7.0'
+    
+    testImplementation 'junit:junit:4.13.2'
+    androidTestImplementation 'androidx.test.ext:junit:1.1.5'
+    androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
 }
