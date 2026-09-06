@@ -11,6 +11,8 @@
     <string name="copy">Salin</string>
     <string name="close">Tutup</string>
     <string name="input_hint">Masukkan teks...</string>
+    <string name="floating_translator">Floating Translator</string>
+    <string name="open_floating">Buka Floating Translator</string>
     
     <!-- Status Messages -->
     <string name="translating">Menerjemahkan...</string>
@@ -27,4 +29,14 @@
     <string name="notification_title">EnglishAI Translator</string>
     <string name="notification_text">Floating translator aktif</string>
     <string name="notification_stop">Stop Service</string>
+    
+    <!-- Permission -->
+    <string name="permission_required">Izin overlay diperlukan</string>
+    <string name="permission_grant">Beri Izin</string>
+    <string name="permission_denied">Izin ditolak</string>
+    
+    <!-- Errors -->
+    <string name="error_unknown">Terjadi kesalahan</string>
+    <string name="error_timeout">Koneksi timeout</string>
+    <string name="error_server">Server tidak merespon</string>
 </resources>
