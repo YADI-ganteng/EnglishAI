@@ -1,16 +1,30 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- App Info -->
     <string name="app_name">EnglishAI</string>
     <string name="by_yad">By Yad</string>
+    
+    <!-- Main Activity -->
     <string name="translate">Terjemahkan</string>
     <string name="translation_result">Hasil terjemahan...</string>
     <string name="listen">Dengar</string>
     <string name="copy">Salin</string>
     <string name="close">Tutup</string>
     <string name="input_hint">Masukkan teks...</string>
+    
+    <!-- Status Messages -->
     <string name="translating">Menerjemahkan...</string>
     <string name="translation_success">Terjemahan berhasil!</string>
-    <string name="translation_failed">Terjemahan gagal</string>
-    <string name="copied">Tersalin!</string>
+    <string name="translation_failed">Terjemahan gagal, coba lagi</string>
+    <string name="copied">Tersalin ke clipboard!</string>
     <string name="no_text">Masukkan teks terlebih dahulu</string>
+    <string name="network_error">Tidak ada koneksi internet</string>
+    <string name="service_started">Translator aktif</string>
+    <string name="service_stopped">Translator dinonaktifkan</string>
+    <string name="tts_coming_soon">Text-to-Speech segera hadir</string>
+    
+    <!-- Notification -->
+    <string name="notification_title">EnglishAI Translator</string>
+    <string name="notification_text">Floating translator aktif</string>
+    <string name="notification_stop">Stop Service</string>
 </resources>
