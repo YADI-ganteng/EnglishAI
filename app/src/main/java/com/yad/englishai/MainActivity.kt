@@ -11,16 +11,13 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import kotlinx.coroutines.*
+import org.json.JSONObject
+import java.net.HttpURLConnection
+import java.net.URL
+import java.net.URLEncoder
 
 /**
  * MainActivity - Halaman utama EnglishAI
- * 
- * Fitur:
- * - Input teks untuk diterjemahkan
- * - Tombol terjemahkan
- * - Hasil terjemahan
- * - Tombol untuk membuka floating translator
- * - Text-to-Speech
  */
 class MainActivity : AppCompatActivity() {
     
@@ -93,20 +90,20 @@ class MainActivity : AppCompatActivity() {
     private fun handleSpeak() {
         val result = resultTextView.text.toString()
         if (result.isNotEmpty() && result != getString(R.string.translation_result)) {
-            // TODO: Implement TTS
             Toast.makeText(this, R.string.tts_coming_soon, Toast.LENGTH_SHORT).show()
         }
     }
     
     private suspend fun translateText(text: String): String = withContext(Dispatchers.IO) {
         try {
-            val url = URL("https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=id&dt=t&q=${java.net.URLEncoder.encode(text, "UTF-8")}")
+            val encodedText = URLEncoder.encode(text, "UTF-8")
+            val url = URL("https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=id&dt=t&q=$encodedText")
             val connection = url.openConnection() as HttpURLConnection
             connection.requestMethod = "GET"
             connection.connectTimeout = 5000
             connection.readTimeout = 10000
             
-            val response = connection.inputStream.bufferedReader().readText()
+            val response = connection.inputStream.bufferedReader().use { it.readText() }
             connection.disconnect()
             
             parseResponse(response)
@@ -118,7 +115,7 @@ class MainActivity : AppCompatActivity() {
     
     private fun parseResponse(response: String): String {
         return try {
-            val jsonArray = org.json.JSONObject(response).getJSONArray("sentences")
+            val jsonArray = JSONObject(response).getJSONArray("sentences")
             val sb = StringBuilder()
             for (i in 0 until jsonArray.length()) {
                 sb.append(jsonArray.getJSONObject(i).getString("trans"))
@@ -163,9 +160,6 @@ class MainActivity : AppCompatActivity() {
         if (requestCode == OVERLAY_PERMISSION_REQUEST) {
             if (checkOverlayPermission()) {
                 startFloatingService()
-                Toast.makeText(this, R.string.service_started, Toast.LENGTH_SHORT).show()
-            } else {
-                Toast.makeText(this, R.string.network_error, Toast.LENGTH_SHORT).show()
             }
         }
     }
