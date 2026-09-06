@@ -5,117 +5,173 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
-import android.speech.tts.TextToSpeech
 import android.widget.Button
 import android.widget.EditText
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import com.google.mlkit.common.model.DownloadConditions
-import com.google.mlkit.nl.translate.TranslateLanguage
-import com.google.mlkit.nl.translate.Translation
-import com.google.mlkit.nl.translate.TranslatorOptions
-import java.util.Locale
+import kotlinx.coroutines.*
 
+/**
+ * MainActivity - Halaman utama EnglishAI
+ * 
+ * Fitur:
+ * - Input teks untuk diterjemahkan
+ * - Tombol terjemahkan
+ * - Hasil terjemahan
+ * - Tombol untuk membuka floating translator
+ * - Text-to-Speech
+ */
 class MainActivity : AppCompatActivity() {
     
-    private lateinit var textToSpeech: TextToSpeech
-    private lateinit var translator: com.google.mlkit.nl.translate.Translator
-    private lateinit var btnStartFloating: Button
-    private lateinit var btnStopFloating: Button
+    private lateinit var inputEditText: EditText
+    private lateinit var resultTextView: TextView
+    private lateinit var btnTranslate: Button
+    private lateinit var btnFloating: Button
+    private lateinit var btnSpeak: Button
+    
+    private val scope = CoroutineScope(Dispatchers.Main + Job())
+    
+    companion object {
+        const val OVERLAY_PERMISSION_REQUEST = 1001
+    }
     
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         
-        val inputText = findViewById<EditText>(R.id.inputText)
-        val translatedText = findViewById<TextView>(R.id.translatedText)
-        val btnTranslate = findViewById<Button>(R.id.btnTranslate)
-        val btnSpeak = findViewById<Button>(R.id.btnSpeak)
-        val btnCopy = findViewById<Button>(R.id.btnCopy)
-        btnStartFloating = findViewById(R.id.btnStartFloating)
-        btnStopFloating = findViewById(R.id.btnStopFloating)
-        
-        val options = TranslatorOptions.Builder()
-            .setSourceLanguage(TranslateLanguage.INDONESIAN)
-            .setTargetLanguage(TranslateLanguage.ENGLISH)
-            .build()
-        translator = Translation.getClient(options)
-        translator.downloadModelIfNeeded(DownloadConditions.Builder().build())
-        
-        textToSpeech = TextToSpeech(this) { status ->
-            if (status == TextToSpeech.SUCCESS) textToSpeech.language = Locale.US
+        initializeViews()
+        setupListeners()
+    }
+    
+    private fun initializeViews() {
+        inputEditText = findViewById(R.id.inputEditText)
+        resultTextView = findViewById(R.id.resultTextView)
+        btnTranslate = findViewById(R.id.btnTranslate)
+        btnFloating = findViewById(R.id.btnFloating)
+        btnSpeak = findViewById(R.id.btnSpeak)
+    }
+    
+    private fun setupListeners() {
+        btnTranslate.setOnClickListener {
+            handleTranslate()
         }
         
-        btnTranslate.setOnClickListener {
-            val text = inputText.text.toString()
-            if (text.isNotEmpty()) {
-                translator.translate(text)
-                    .addOnSuccessListener { result -> translatedText.text = result }
-                    .addOnFailureListener { Toast.makeText(this, "Gagal", Toast.LENGTH_SHORT).show() }
-            }
+        btnFloating.setOnClickListener {
+            handleFloatingTranslator()
         }
         
         btnSpeak.setOnClickListener {
-            val text = translatedText.text.toString()
-            if (text.isNotEmpty() && text != "Hasil terjemahan...") {
-                textToSpeech.speak(text, TextToSpeech.QUEUE_FLUSH, null, "speak")
-            }
+            handleSpeak()
         }
-        
-        btnCopy.setOnClickListener {
-            val text = translatedText.text.toString()
-            if (text.isNotEmpty() && text != "Hasil terjemahan...") {
-                val clipboard = getSystemService(CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                clipboard.setPrimaryClip(android.content.ClipData.newPlainText("English", text))
-                Toast.makeText(this, "✅ Tersalin!", Toast.LENGTH_SHORT).show()
-                translatedText.text = "Hasil terjemahan..."
-                inputText.text.clear()
-            }
-        }
-        
-        btnStartFloating.setOnClickListener { startFloatingTranslator() }
-        btnStopFloating.setOnClickListener {
-            stopService(Intent(this, FloatingTranslatorService::class.java))
-            updateFloatingButtons()
-        }
-        
-        updateFloatingButtons()
     }
     
-    private fun startFloatingTranslator() {
+    private fun handleTranslate() {
+        val text = inputEditText.text.toString().trim()
+        
+        if (text.isEmpty()) {
+            Toast.makeText(this, R.string.no_text, Toast.LENGTH_SHORT).show()
+            return
+        }
+        
+        resultTextView.text = getString(R.string.translating)
+        
+        scope.launch {
+            val result = translateText(text)
+            resultTextView.text = result
+        }
+    }
+    
+    private fun handleFloatingTranslator() {
+        if (checkOverlayPermission()) {
+            startFloatingService()
+        } else {
+            requestOverlayPermission()
+        }
+    }
+    
+    private fun handleSpeak() {
+        val result = resultTextView.text.toString()
+        if (result.isNotEmpty() && result != getString(R.string.translation_result)) {
+            // TODO: Implement TTS
+            Toast.makeText(this, R.string.tts_coming_soon, Toast.LENGTH_SHORT).show()
+        }
+    }
+    
+    private suspend fun translateText(text: String): String = withContext(Dispatchers.IO) {
+        try {
+            val url = URL("https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=id&dt=t&q=${java.net.URLEncoder.encode(text, "UTF-8")}")
+            val connection = url.openConnection() as HttpURLConnection
+            connection.requestMethod = "GET"
+            connection.connectTimeout = 5000
+            connection.readTimeout = 10000
+            
+            val response = connection.inputStream.bufferedReader().readText()
+            connection.disconnect()
+            
+            parseResponse(response)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            getString(R.string.translation_failed)
+        }
+    }
+    
+    private fun parseResponse(response: String): String {
+        return try {
+            val jsonArray = org.json.JSONObject(response).getJSONArray("sentences")
+            val sb = StringBuilder()
+            for (i in 0 until jsonArray.length()) {
+                sb.append(jsonArray.getJSONObject(i).getString("trans"))
+            }
+            sb.toString()
+        } catch (e: Exception) {
+            getString(R.string.translation_failed)
+        }
+    }
+    
+    private fun checkOverlayPermission(): Boolean {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            Settings.canDrawOverlays(this)
+        } else {
+            true
+        }
+    }
+    
+    private fun requestOverlayPermission() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            if (!Settings.canDrawOverlays(this)) {
-                startActivityForResult(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName")), 100)
-                return
-            }
+            val intent = Intent(
+                Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                Uri.parse("package:$packageName")
+            )
+            startActivityForResult(intent, OVERLAY_PERMISSION_REQUEST)
         }
-        val manager = getSystemService(MEDIA_PROJECTION_SERVICE) as android.media.projection.MediaProjectionManager
-        startActivityForResult(manager.createScreenCaptureIntent(), 200)
     }
     
-    private fun updateFloatingButtons() {
-        val running = FloatingTranslatorService.isRunning
-        btnStartFloating.isEnabled = !running
-        btnStopFloating.isEnabled = running
+    private fun startFloatingService() {
+        val intent = Intent(this, FloatingTranslatorService::class.java)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            startForegroundService(intent)
+        } else {
+            startService(intent)
+        }
     }
     
+    @Deprecated("Deprecated in Java")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode == 200 && resultCode == RESULT_OK && data != null) {
-            val intent = Intent(this, FloatingTranslatorService::class.java)
-            intent.putExtra("resultCode", resultCode)
-            intent.putExtra("resultData", data)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) startForegroundService(intent)
-            else startService(intent)
-            updateFloatingButtons()
+        
+        if (requestCode == OVERLAY_PERMISSION_REQUEST) {
+            if (checkOverlayPermission()) {
+                startFloatingService()
+                Toast.makeText(this, R.string.service_started, Toast.LENGTH_SHORT).show()
+            } else {
+                Toast.makeText(this, R.string.network_error, Toast.LENGTH_SHORT).show()
+            }
         }
     }
     
-    override fun onResume() { super.onResume(); updateFloatingButtons() }
-    
     override fun onDestroy() {
+        scope.cancel()
         super.onDestroy()
-        textToSpeech.stop(); textToSpeech.shutdown(); translator.close()
     }
 }
