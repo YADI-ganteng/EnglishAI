@@ -1,20 +1,87 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#1a1a2e">
-    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="24dp" android:gravity="center">
-        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="🌟 EnglishAI" android:textSize="32sp" android:textStyle="bold" android:textColor="#4CAF50" android:layout_marginBottom="4dp"/>
-        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="By Yad" android:textSize="14sp" android:textColor="#FFD700" android:layout_marginBottom="16dp"/>
-        <EditText android:id="@+id/inputText" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="✏️ Tulis bahasa Indonesia..." android:textColor="#FFFFFF" android:textColorHint="#666666" android:textSize="16sp" android:padding="16dp" android:background="@drawable/input_bg" android:layout_marginBottom="12dp"/>
-        <Button android:id="@+id/btnTranslate" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="🔄 Terjemahkan" android:textSize="16sp" android:padding="14dp" android:backgroundTint="#4CAF50" android:layout_marginBottom="12dp"/>
-        <TextView android:id="@+id/translatedText" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Hasil terjemahan..." android:textColor="#FFFFFF" android:textSize="18sp" android:padding="16dp" android:background="@drawable/result_bg" android:gravity="center" android:layout_marginBottom="12dp"/>
-        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginBottom="24dp">
-            <Button android:id="@+id/btnSpeak" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="🔊 Dengar" android:textSize="14sp" android:padding="12dp" android:backgroundTint="#2196F3" android:layout_marginEnd="8dp"/>
-            <Button android:id="@+id/btnCopy" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="📋 Copy" android:textSize="14sp" android:padding="12dp" android:backgroundTint="#FF9800"/>
-        </LinearLayout>
-        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="🌍 Floating Translator" android:textSize="18sp" android:textStyle="bold" android:textColor="#FFFFFF" android:layout_marginBottom="12dp"/>
-        <Button android:id="@+id/btnStartFloating" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="🚀 Mulai Floating" android:textSize="16sp" android:padding="14dp" android:backgroundTint="#9C27B0" android:layout_marginBottom="8dp"/>
-        <Button android:id="@+id/btnStopFloating" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="⏹️ Stop Floating" android:textSize="16sp" android:padding="14dp" android:enabled="false" android:backgroundTint="#f44336"/>
+    android:orientation="vertical"
+    android:padding="20dp"
+    android:gravity="center"
+    android:background="#0f0f1a">
+    
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/app_name"
+        android:textSize="36sp"
+        android:textStyle="bold"
+        android:textColor="#667eea"
+        android:layout_marginBottom="5dp"/>
+    
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/by_yad"
+        android:textSize="14sp"
+        android:textColor="#888888"
+        android:layout_marginBottom="30dp"/>
+    
+    <EditText
+        android:id="@+id/inputEditText"
+        android:layout_width="match_parent"
+        android:layout_height="120dp"
+        android:hint="@string/input_hint"
+        android:textColor="#FFFFFF"
+        android:textColorHint="#888888"
+        android:background="#1a1a2e"
+        android:padding="15dp"
+        android:gravity="top"
+        android:inputType="textMultiLine"
+        android:layout_marginBottom="15dp"/>
+    
+    <Button
+        android:id="@+id/btnTranslate"
+        android:layout_width="match_parent"
+        android:layout_height="55dp"
+        android:text="@string/translate"
+        android:textSize="18sp"
+        android:background="#667eea"
+        android:layout_marginBottom="15dp"/>
+    
+    <TextView
+        android:id="@+id/resultTextView"
+        android:layout_width="match_parent"
+        android:layout_height="120dp"
+        android:text="@string/translation_result"
+        android:textColor="#FFFFFF"
+        android:background="#1a1a2e"
+        android:padding="15dp"
+        android:gravity="top"
+        android:layout_marginBottom="15dp"/>
+    
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+        
+        <Button
+            android:id="@+id/btnSpeak"
+            android:layout_width="0dp"
+            android:layout_height="50dp"
+            android:layout_weight="1"
+            android:text="@string/listen"
+            android:background="#1a1a2e"
+            android:textColor="#FFFFFF"
+            android:layout_marginEnd="5dp"/>
+        
+        <Button
+            android:id="@+id/btnFloating"
+            android:layout_width="0dp"
+            android:layout_height="50dp"
+            android:layout_weight="1"
+            android:text="@string/floating_translator"
+            android:background="#1a1a2e"
+            android:textColor="#FFFFFF"
+            android:layout_marginStart="5dp"/>
+        
     </LinearLayout>
-</ScrollView>
+    
+</LinearLayout>
